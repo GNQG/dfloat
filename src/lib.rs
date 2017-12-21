@@ -1,5 +1,6 @@
 #![cfg_attr(feature = "use-fma", feature(cfg_target_feature))]
 extern crate core;
+extern crate num_traits;
 extern crate float_traits;
 extern crate safeeft;
 #[cfg(feature = "use-fma")]

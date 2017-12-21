@@ -2,6 +2,7 @@
 use core::ops::{Neg, Add, Sub, Mul, Div};
 use core::cmp::{PartialEq, PartialOrd, Ordering};
 use core::clone::Clone;
+use num_traits::{Zero, One, Bounded};
 use float_traits::*;
 #[cfg(not(feature = "use-fma"))]
 use safeeft::{fasttwosum, safetwosum_straight as safetwosum,
@@ -27,20 +28,50 @@ pub struct DFloat<T: FloatComponent> {
     low: T,
 }
 
-impl<T: FloatComponent> DFloat<T> {
-    #[inline]
-    pub fn zero() -> DFloat<T> {
+impl<T: FloatComponent> Zero for DFloat<T> {
+    fn zero() -> DFloat<T> {
         DFloat {
             high: T::zero(),
             low: T::zero(),
         }
     }
-    #[inline]
-    pub fn one() -> DFloat<T> {
+    fn is_zero(&self) -> bool {
+        self.high.is_zero() && self.low.is_zero()
+    }
+}
+
+impl<T: FloatComponent> One for DFloat<T> {
+    fn one() -> DFloat<T> {
         DFloat {
             high: T::one(),
             low: T::zero(),
         }
+    }
+}
+
+impl<T: FloatComponent> Bounded for DFloat<T> {
+    fn max_value() -> DFloat<T> {
+        DFloat {
+            high: T::max_value(),
+            low: T::max_value() * T::eps() / T::radix() / T::radix(),
+        }
+    }
+    fn min_value() -> DFloat<T> {
+        DFloat {
+            high: T::min_value(),
+            low: T::min_value() * T::eps() / T::radix() / T::radix(),
+        }
+    }
+}
+
+impl<T: FloatComponent> DFloat<T> {
+    #[inline]
+    pub fn zero() -> DFloat<T> {
+        <DFloat<T> as Zero>::zero()
+    }
+    #[inline]
+    pub fn one() -> DFloat<T> {
+        <DFloat<T> as One>::one()
     }
     #[inline]
     pub fn infinity() -> DFloat<T> {
@@ -58,17 +89,11 @@ impl<T: FloatComponent> DFloat<T> {
     }
     #[inline]
     pub fn max_value() -> DFloat<T> {
-        DFloat {
-            high: T::max_value(),
-            low: T::max_value() * T::eps() / T::radix() / T::radix(),
+        <DFloat<T> as Bounded>::max_value()
         }
-    }
     #[inline]
     pub fn min_value() -> DFloat<T> {
-        DFloat {
-            high: T::min_value(),
-            low: T::min_value() * T::eps() / T::radix() / T::radix(),
-        }
+        <DFloat<T> as Bounded>::min_value()
     }
     #[inline]
     pub fn min_positive() -> DFloat<T> {
