@@ -90,7 +90,7 @@ impl<T: FloatComponent> DFloat<T> {
     #[inline]
     pub fn max_value() -> DFloat<T> {
         <DFloat<T> as Bounded>::max_value()
-        }
+    }
     #[inline]
     pub fn min_value() -> DFloat<T> {
         <DFloat<T> as Bounded>::min_value()
@@ -126,11 +126,11 @@ impl<T: FloatComponent> DFloat<T> {
         }
     }
     #[inline]
-    pub fn high_ref(&self) -> T {
+    pub fn high_component(&self) -> T {
         self.high.clone()
     }
     #[inline]
-    pub fn low_ref(&self) -> T {
+    pub fn low_component(&self) -> T {
         self.low.clone()
     }
     #[inline]
@@ -225,7 +225,7 @@ impl<T: FloatComponent> Div<DFloat<T>> for DFloat<T> {
             let ql = if z3.is_infinite() {
                 let (z3, z4) = safetwoproduct(-qh.clone(), rhs.high.clone() / T::radix());
                 ((((z3 + (self.high / T::radix())) - qh.clone() * (rhs.low / T::radix())) +
-                      self.low / T::radix()) + z4) / (rhs.high / T::radix())
+                  self.low / T::radix()) + z4) / (rhs.high / T::radix())
             } else {
                 ((((z3 + self.high) - qh.clone() * rhs.low) + self.low) + z4) / rhs.high
             };
