@@ -134,7 +134,7 @@ impl<T: FloatComponent> DFloat<T> {
         self.low.clone()
     }
     #[inline]
-    pub fn decomposite(self) -> (T, T) {
+    pub fn decompose(self) -> (T, T) {
         (self.high, self.low)
     }
 }
