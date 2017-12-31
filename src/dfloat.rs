@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use core::ops::{Neg, Add, Sub, Mul, Div};
 use core::cmp::{PartialEq, PartialOrd, Ordering};
 use core::clone::Clone;
@@ -103,38 +102,46 @@ impl<T: FloatComponent> DFloat<T> {
         }
     }
     #[inline]
-    pub fn from_single(t: T) -> DFloat<T> {
+    pub fn from_component(t: T) -> DFloat<T> {
         DFloat {
             high: t,
             low: T::zero(),
         }
     }
     #[inline]
-    pub fn from_pair(high: T, low: T) -> DFloat<T> {
+    pub fn from_two_components(high: T, low: T) -> DFloat<T> {
         let t = safetwosum(high, low);
-        DFloat {
-            high: t.0,
-            low: t.1,
+        if t.0.is_infinite() {
+            DFloat {
+                high: t.0,
+                low: T::zero(),
+            }
+        } else {
+            DFloat {
+                high: t.0,
+                low: t.1,
+            }
+
         }
     }
     #[doc(hidden)]
     #[inline]
-    pub fn _from_pair_raw(high: T, low: T) -> DFloat<T> {
+    pub unsafe fn from_double_components_unchecked(high: T, low: T) -> DFloat<T> {
         DFloat {
             high: high,
             low: low,
         }
     }
     #[inline]
-    pub fn high_component(&self) -> T {
-        self.high.clone()
+    pub fn high(&self) -> &T {
+        &self.high
     }
     #[inline]
-    pub fn low_component(&self) -> T {
-        self.low.clone()
+    pub fn low(&self) -> &T {
+        &self.low
     }
     #[inline]
-    pub fn decompose(self) -> (T, T) {
+    pub fn into_tuple(self) -> (T, T) {
         (self.high, self.low)
     }
 }
@@ -191,11 +198,29 @@ impl<T: FloatComponent> Add<DFloat<T>> for DFloat<T> {
     }
 }
 
+impl<'a, T: FloatComponent> Add<&'a DFloat<T>> for DFloat<T> {
+    type Output = DFloat<T>;
+    fn add(self, rhs: &'a DFloat<T>) -> DFloat<T> {
+        let (sh, sl) = safetwosum(self.high, rhs.high.clone());
+        let (sh, sl) = fasttwosum(sh, sl + self.low + rhs.low.clone());
+        DFloat { high: sh, low: sl }
+    }
+}
+
 impl<T: FloatComponent> Sub<DFloat<T>> for DFloat<T> {
     type Output = DFloat<T>;
     fn sub(self, rhs: DFloat<T>) -> DFloat<T> {
         let (sh, sl) = safetwosum(self.high, -rhs.high);
         let (sh, sl) = fasttwosum(sh, sl + self.low - rhs.low);
+        DFloat { high: sh, low: sl }
+    }
+}
+
+impl<'a, T: FloatComponent> Sub<&'a DFloat<T>> for DFloat<T> {
+    type Output = DFloat<T>;
+    fn sub(self, rhs: &'a DFloat<T>) -> DFloat<T> {
+        let (sh, sl) = safetwosum(self.high, -rhs.high.clone());
+        let (sh, sl) = fasttwosum(sh, sl + self.low - rhs.low.clone());
         DFloat { high: sh, low: sl }
     }
 }
@@ -207,6 +232,17 @@ impl<T: FloatComponent> Mul<DFloat<T>> for DFloat<T> {
         DFloat {
             high: mh,
             low: ml + self.low * rhs.high + self.high * rhs.low,
+        }
+    }
+}
+
+impl<'a, T: FloatComponent> Mul<&'a DFloat<T>> for DFloat<T> {
+    type Output = DFloat<T>;
+    fn mul(self, rhs: &'a DFloat<T>) -> DFloat<T> {
+        let (mh, ml) = safetwoproduct(self.high.clone(), rhs.high.clone());
+        DFloat {
+            high: mh,
+            low: ml + self.low * rhs.high.clone() + self.high * rhs.low.clone(),
         }
     }
 }
@@ -235,8 +271,33 @@ impl<T: FloatComponent> Div<DFloat<T>> for DFloat<T> {
     }
 }
 
+impl<'a, T: FloatComponent> Div<&'a DFloat<T>> for DFloat<T> {
+    type Output = DFloat<T>;
+    fn div(self, rhs: &'a DFloat<T>) -> DFloat<T> {
+        let qh = self.high.clone() / rhs.high.clone();
+        if rhs.high.is_infinite() || qh.is_infinite() {
+            DFloat {
+                high: qh,
+                low: T::zero(),
+            }
+        } else {
+            let (z3, z4) = safetwoproduct(-qh.clone(), rhs.high.clone());
+            let ql = if z3.is_infinite() {
+                let (z3, z4) = safetwoproduct(-qh.clone(), rhs.high.clone() / T::radix());
+                ((((z3 + (self.high / T::radix())) - qh.clone() * (rhs.low.clone() / T::radix())) +
+                  self.low / T::radix()) + z4) / (rhs.high.clone() / T::radix())
+            } else {
+                ((((z3 + self.high) - qh.clone() * rhs.low.clone()) + self.low) + z4) /
+                rhs.high.clone()
+            };
+            let (qh, ql) = fasttwosum(qh, ql);
+            DFloat { high: qh, low: ql }
+        }
+    }
+}
+
 impl<T: FloatComponent> DFloat<T> {
-    fn sqrt(self) -> DFloat<T> {
+    pub fn sqrt(self) -> DFloat<T> {
         if self.high == T::zero() && self.low == T::zero() {
             DFloat::zero()
         } else if self.high.is_infinite() {
@@ -259,6 +320,6 @@ mod tests {
     fn add() {
         use super::DFloat;
         let (d1, d2) = (DFloat::<f64>::zero(), DFloat::<f64>::zero());
-        println!("{:?}", d1 + d2);
+        assert_eq!(d1.clone() + &d2, d1 + d2);
     }
 }
